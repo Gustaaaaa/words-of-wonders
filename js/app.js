@@ -1017,6 +1017,10 @@ function openHowTo() {
 function bind() {
   document.addEventListener('pointerdown', unlock, { passive: true });
   document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('touchmove', (e) => {
+    if (!e.target.closest('.modal-card, .bonus-list')) e.preventDefault();
+  }, { passive: false });
+  addEventListener('scroll', () => scrollY && scrollTo(0, 0));
   document.addEventListener('dblclick', (e) => e.preventDefault());
 
   $('btnPlay').onclick = () => { sfx.tap(); startLevel(); };
@@ -1046,18 +1050,21 @@ function bind() {
   document.querySelectorAll('[data-price]').forEach((el) => (el.textContent = PRICES[el.dataset.price]));
 }
 
-// No app da Tela de Início do iPhone a janela pode vir mais baixa que a tela.
-// Não mexemos no tamanho do jogo: só medimos a sobra (--gap) para o cenário cobrir
-// essa faixa e o espaçamento de baixo não ficar duplicado.
+// No app da Tela de Início do iPhone (barra de status translúcida) o iOS às vezes informa
+// uma janela mais baixa que a tela, sobrando uma faixa embaixo. Aqui o jogo passa a ter a
+// altura real da tela; fora do modo app, usa a janela normal.
 function fitStandalone() {
   const root = document.documentElement;
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
-  let gap = 0;
+  let h = 0;
   if (standalone && innerHeight >= innerWidth) {
     const full = Math.max(screen.height, screen.width);
-    gap = Math.max(0, Math.min(80, full - innerHeight));
+    const gap = full - innerHeight;
+    if (gap > 0 && gap <= 80) h = full;
   }
-  root.style.setProperty('--gap', gap + 'px');
+  if (h) root.style.setProperty('--app-h', h + 'px');
+  else root.style.removeProperty('--app-h');
+  if (scrollY) scrollTo(0, 0);
 }
 
 async function boot() {

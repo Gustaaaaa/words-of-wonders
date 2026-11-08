@@ -22,7 +22,7 @@
   --good: #4caf8a;
   --radius: 22px;
   --safe-t: env(safe-area-inset-top, 0px);
-  --safe-b: max(0px, calc(env(safe-area-inset-bottom, 0px) - var(--gap, 0px)));
+  --safe-b: env(safe-area-inset-bottom, 0px);
   --font: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: light;
 }
@@ -57,15 +57,17 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { background: var(--bg3); }
+/* Sem position: fixed de propósito: no app da Tela de Início o iOS prende elementos
+   fixos numa janela mais baixa que a tela. No fluxo normal, com a altura real
+   (--app-h, calculada no app.js), o jogo ocupa a tela inteira. */
 html, body {
   margin: 0;
-  height: 100%;
+  height: var(--app-h, 100%);
   overflow: hidden;
   overscroll-behavior: none;
 }
 body {
-  position: fixed;
-  inset: 0;
+  position: relative;
   font-family: var(--font);
   color: var(--text);
   background: var(--bg3);
@@ -88,7 +90,7 @@ svg { display: block; }
 [hidden] { display: none !important; }
 
 /* ---------------------------------------------------------------- fundo */
-#bg { position: fixed; inset: 0; overflow: hidden; z-index: 0; }
+#bg { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
 .bg-layer {
   position: absolute;
   inset: 0;
@@ -131,7 +133,7 @@ svg { display: block; }
 .hill-front { fill: var(--ink); opacity: 0.1; }
 
 /* ---------------------------------------------------------------- telas */
-#app { position: fixed; inset: 0; z-index: 1; }
+#app { position: absolute; inset: 0; z-index: 1; }
 .screen {
   position: absolute;
   inset: 0;
@@ -601,8 +603,8 @@ svg { display: block; }
 }
 
 /* ---------------------------------------------------------------- efeitos */
-#fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
-#fxBack { position: fixed; inset: 0; pointer-events: none; z-index: 39; overflow: hidden; }
+#fx { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+#fxBack { position: absolute; inset: 0; pointer-events: none; z-index: 39; overflow: hidden; }
 .fly-letter {
   position: absolute;
   display: grid;
@@ -643,7 +645,7 @@ svg { display: block; }
 }
 
 #toast {
-  position: fixed;
+  position: absolute;
   left: 50%;
   top: calc(var(--safe-t) + 64px);
   z-index: 60;
@@ -665,7 +667,7 @@ svg { display: block; }
 
 /* ---------------------------------------------------------------- modais */
 .modal {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 40;
   display: grid;
@@ -774,7 +776,7 @@ svg { display: block; }
 
 /* ---------------------------------------------------------------- splash e loading */
 .chapter-splash {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 45;
   display: flex;
@@ -799,7 +801,7 @@ svg { display: block; }
   100% { opacity: 0; visibility: hidden; }
 }
 .loading {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 100;
   display: grid;
@@ -831,15 +833,6 @@ svg { display: block; }
 :root[data-black="1"] .progress { background: rgba(255, 255, 255, 0.1); }
 :root[data-black="1"] .week .dot { background: rgba(255, 255, 255, 0.08); }
 :root[data-black="1"] .streak, :root[data-black="1"] .chapter-num { background: rgba(255, 255, 255, 0.08); }
-
-/* App na Tela de Início do iPhone: com a barra de status translúcida, o iOS às vezes
-   entrega uma janela menor que a tela (sobra uma faixa embaixo). O conteúdo continua
-   dentro da janela; só o cenário de fundo é esticado para cobrir a tela inteira, e o
-   espaçamento de baixo desconta a parte que já ficou fora da janela (--gap). */
-#bg {
-  top: calc(-1 * env(safe-area-inset-top, 0px));
-  bottom: calc(-1 * (var(--gap, 0px) + 60px));
-}
 
 /* =========================================================================
    Capricho visual e micro-animações
@@ -913,14 +906,6 @@ svg { display: block; }
 
 /* --- roda: cada letra numa bolinha, com “pulinho” ao ser escolhida --- */
 .wheel-disc { background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.42), var(--glass) 70%); }
-.wheel-disc::after {
-  content: "";
-  position: absolute;
-  inset: 9%;
-  border-radius: 50%;
-  border: 1.5px dashed rgba(255, 255, 255, 0.35);
-  animation: slowSpin 60s linear infinite;
-}
 @keyframes slowSpin { to { transform: rotate(360deg); } }
 .wl {
   background: rgba(255, 255, 255, 0.3);
@@ -1022,5 +1007,5 @@ svg { display: block; }
 
 @media (prefers-reduced-motion: reduce) {
   .btn.primary::after, #ambient { display: none; }
-  .wheel-disc::after, .tool.nudge, .combo.show .combo-x { animation: none !important; }
+  .tool.nudge, .combo.show .combo-x { animation: none !important; }
 }

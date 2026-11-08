@@ -1,5 +1,5 @@
 // Service worker: guarda o jogo no aparelho para jogar offline.
-const VERSION = 'brisa-v4';
+const VERSION = 'brisa-v5';
 const SHELL = [
   './',
   'index.html',
