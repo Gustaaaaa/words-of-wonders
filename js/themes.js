@@ -80,6 +80,7 @@ export function applyTheme(theme, instant = false) {
   root.style.setProperty('--text', black || theme.dark ? '#f4f1ff' : theme.ink);
   root.dataset.dark = black || theme.dark ? '1' : '0';
   root.dataset.black = black ? '1' : '0';
+  root.style.background = black ? '#060608' : theme.c[2];
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = black ? '#111116' : theme.c[0];
 

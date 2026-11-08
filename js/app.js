@@ -977,7 +977,21 @@ function bind() {
   document.querySelectorAll('[data-price]').forEach((el) => (el.textContent = PRICES[el.dataset.price]));
 }
 
+// No app da Tela de Início do iPhone a altura da janela vem menor que a tela: corrige.
+function fitStandalone() {
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  const root = document.documentElement;
+  root.classList.toggle('standalone', standalone);
+  if (!standalone) return;
+  const portrait = innerHeight >= innerWidth;
+  const full = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
+  root.style.setProperty('--app-h', Math.max(innerHeight, full) + 'px');
+}
+
 async function boot() {
+  fitStandalone();
+  addEventListener('resize', fitStandalone);
+  addEventListener('orientationchange', () => setTimeout(fitStandalone, 300));
   bind();
   applyTheme(chapterOf(state.level).theme, true);
   try {

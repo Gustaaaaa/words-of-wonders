@@ -45,7 +45,7 @@
   --pop-ink: #f6f4ff;
   color-scheme: dark;
 }
-:root[data-black="1"] body { background: #0e0e13; }
+:root[data-black="1"], :root[data-black="1"] body { background: #060608; }
 :root[data-black="1"] .hill { fill: var(--accent); }
 :root[data-black="1"] .hill-back { opacity: 0.06; }
 :root[data-black="1"] .hill-front { opacity: 0.09; }
@@ -56,6 +56,7 @@
 :root[data-black="1"] .reward-row.total { background: rgba(242, 184, 75, 0.18); }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--bg3); }
 html, body {
   margin: 0;
   height: 100%;
@@ -67,7 +68,7 @@ body {
   inset: 0;
   font-family: var(--font);
   color: var(--text);
-  background: var(--bg2);
+  background: var(--bg3);
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -830,3 +831,17 @@ svg { display: block; }
 :root[data-black="1"] .progress { background: rgba(255, 255, 255, 0.1); }
 :root[data-black="1"] .week .dot { background: rgba(255, 255, 255, 0.08); }
 :root[data-black="1"] .streak, :root[data-black="1"] .chapter-num { background: rgba(255, 255, 255, 0.08); }
+
+/* App na Tela de Início do iPhone: com a barra de status translúcida, o iOS deixa a
+   página mais baixa que a tela e sobra uma faixa embaixo. Aqui usamos a altura real. */
+html.standalone body,
+html.standalone #bg,
+html.standalone #app,
+html.standalone .modal,
+html.standalone .chapter-splash,
+html.standalone .loading,
+html.standalone #fx,
+html.standalone #fxBack {
+  bottom: auto;
+  height: var(--app-h, 100vh);
+}
