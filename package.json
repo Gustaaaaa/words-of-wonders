@@ -1,0 +1,12 @@
+{
+  "name": "brisa-palavras",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Brisa · Palavras — jogo de palavras cruzadas zen para celular (PWA)",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "levels": "sh tools/build.sh",
+    "icons": "node tools/make-icons.mjs"
+  }
+}
