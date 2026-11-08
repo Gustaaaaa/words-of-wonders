@@ -9,7 +9,12 @@ export class Grid {
     this.puzzle = null;
     el.addEventListener('click', (e) => {
       const cell = e.target.closest('.cell');
-      if (cell) this.onCellTap?.(cell.dataset.key);
+      if (!cell) return;
+      cell.classList.remove('boop');
+      void cell.offsetWidth;
+      cell.classList.add('boop');
+      setTimeout(() => cell.classList.remove('boop'), 400);
+      this.onCellTap?.(cell.dataset.key);
     });
     new ResizeObserver(() => this.layout()).observe(wrap);
   }
@@ -26,6 +31,11 @@ export class Grid {
       s.textContent = ch;
       d.appendChild(s);
       if (revealed.has(key)) d.classList.add('on');
+      // entrada em cascata, na diagonal
+      const [r, c] = key.split(',').map(Number);
+      d.classList.add('enter');
+      d.style.setProperty('--d', (r + c) * 0.035 + 's');
+      d.addEventListener('animationend', () => d.classList.remove('enter'), { once: true });
       this.el.appendChild(d);
       this.cells.set(key, d);
     }

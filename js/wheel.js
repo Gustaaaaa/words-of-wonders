@@ -108,6 +108,7 @@ export class Wheel {
     const p = this.local(e);
     const i = this.hit(p, 1.15);
     if (i < 0) return;
+    this.ripple(this.centers[i]);
     this.pointerId = e.pointerId;
     try { this.el.setPointerCapture(e.pointerId); } catch {}
     this.sel = [];
@@ -152,6 +153,35 @@ export class Wheel {
     this.nodes[i].classList.remove('sel');
     this.onRemove?.(this.sel.length);
     this.onChange?.(this.word());
+  }
+
+  ripple(p) {
+    const r = document.createElement('div');
+    r.className = 'ripple';
+    r.style.left = p.x + 'px';
+    r.style.top = p.y + 'px';
+    this.el.appendChild(r);
+    setTimeout(() => r.remove(), 650);
+  }
+
+  /** Todas as letras dão um pulinho (palavra certa). */
+  hop() {
+    this.order.forEach((li, slot) => {
+      const n = this.nodes[li];
+      n.classList.remove('hop');
+      void n.offsetWidth;
+      n.style.setProperty('--d', slot * 0.04 + 's');
+      n.classList.add('hop');
+      setTimeout(() => n.classList.remove('hop'), 800);
+    });
+  }
+
+  /** A roda balança (palavra que não existe). */
+  no() {
+    this.el.classList.remove('no');
+    void this.el.offsetWidth;
+    this.el.classList.add('no');
+    setTimeout(() => this.el.classList.remove('no'), 500);
   }
 
   word() {

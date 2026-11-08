@@ -227,6 +227,58 @@ function confettiBurst() {
   }
 }
 
+function sparkles(rect, n = 5) {
+  if (!rect) return;
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  for (let i = 0; i < n; i++) {
+    const sp = document.createElement('div');
+    sp.className = 'sparkle';
+    sp.style.left = cx + 'px';
+    sp.style.top = cy + 'px';
+    fx.appendChild(sp);
+    const a = Math.random() * Math.PI * 2;
+    const dist = rect.width * (0.6 + Math.random() * 0.6);
+    const sc = 0.6 + Math.random() * 0.9;
+    sp.animate(
+      [
+        { transform: 'translate(0,0) scale(0) rotate(0deg)', opacity: 1 },
+        { transform: `translate(${Math.cos(a) * dist}px, ${Math.sin(a) * dist}px) scale(${sc}) rotate(140deg)`, opacity: 1, offset: 0.6 },
+        { transform: `translate(${Math.cos(a) * dist * 1.2}px, ${Math.sin(a) * dist * 1.2 + 6}px) scale(0) rotate(200deg)`, opacity: 0 },
+      ],
+      { duration: 650 + Math.random() * 250, easing: 'cubic-bezier(.2,.8,.3,1)' }
+    ).finished.then(() => sp.remove());
+  }
+}
+
+// Pétalas caindo devagar no fundo (vagalumes subindo no tema escuro)
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function ambientLoop() {
+  if (reduceMotion) return;
+  const layer = $('ambient');
+  if (!document.hidden && layer.childElementCount < 9) {
+    const d = document.createElement('i');
+    d.className = 'drift';
+    d.style.left = Math.random() * 100 + '%';
+    const dur = 11 + Math.random() * 9;
+    d.style.animationDuration = dur + 's';
+    d.style.opacity = (0.35 + Math.random() * 0.5).toFixed(2);
+    d.style.scale = (0.6 + Math.random() * 0.8).toFixed(2);
+    layer.appendChild(d);
+    setTimeout(() => d.remove(), dur * 1000 + 200);
+  }
+  setTimeout(ambientLoop, 1600 + Math.random() * 2200);
+}
+
+// Se o jogador ficar parado um tempo, a lâmpada pede atenção com carinho
+let idleTimer = null;
+function resetIdle() {
+  clearTimeout(idleTimer);
+  $('hintLight').classList.remove('nudge');
+  if (!game || game.done) return;
+  idleTimer = setTimeout(() => game && !game.done && $('hintLight').classList.add('nudge'), 25000);
+}
+
 let toastTimer = null;
 function toast(msg, ms = 2400) {
   const t = $('toast');
@@ -398,6 +450,7 @@ function openPuzzle({ mode, id, data, title, subtitle, today }) {
   renderJar();
   renderCoins(state.coins);
   $('wheelTip').hidden = !(state.tutorial && mode === 'level' && state.level === 1);
+  resetIdle();
   save(state);
 }
 
@@ -505,6 +558,7 @@ function submit(word) {
     return foundBonus(word);
   }
   previewResult('bad', 420);
+  wheel.no();
   sfx.bad();
   haptic.bad();
 }
@@ -534,10 +588,13 @@ function foundWord(w) {
   bumpCoins();
 
   flyLetters(fromRects, targets, { letters: w.w.split('') }).then(() => {});
+  wheel.hop();
+  resetIdle();
   w.cells.forEach((k, i) => {
     setTimeout(() => {
       grid.cells.get(k)?.classList.remove('hinted');
       grid.reveal(k);
+      sparkles(grid.rect(k), 3);
     }, 480 + i * 55);
   });
   setTimeout(() => {
@@ -566,7 +623,9 @@ function foundBonus(word) {
   flyLetters(fromRects, word.split('').map(() => target), { letters: word.split(''), gold: true, stagger: 40 }).then(() => {
     wiggleJar();
     renderJar();
+    sparkles($('btnJar').getBoundingClientRect(), 7);
   });
+  resetIdle();
   persist();
   if (!state.seenBonus) {
     state.seenBonus = true;
@@ -591,7 +650,11 @@ function revealCell(key, { animateFrom } = {}) {
   game.hinted.add(key);
   const rect = grid.rect(key);
   if (animateFrom && rect) petals(animateFrom, rect, 4);
-  setTimeout(() => grid.reveal(key, { hinted: true }), animateFrom ? 380 : 0);
+  setTimeout(() => {
+    grid.reveal(key, { hinted: true });
+    sparkles(grid.rect(key), 4);
+  }, animateFrom ? 380 : 0);
+  resetIdle();
 }
 
 function unrevealed() {
@@ -730,6 +793,7 @@ function checkWin() {
   if (!game || game.done || game.found.size < game.puzzle.words.length) return;
   game.done = true;
   wheel.enabled = false;
+  resetIdle();
   cancelTargeting();
   clearTimeout(comboTimer);
   hideCombo();
@@ -963,9 +1027,14 @@ function bind() {
     cancelTargeting();
     if (game && !game.done) persist();
     game = null;
+    resetIdle();
     renderHome();
   };
   $('btnShuffle').onclick = () => {
+    const b = $('btnShuffle');
+    b.classList.remove('spin');
+    void b.offsetWidth;
+    b.classList.add('spin');
     sfx.shuffle();
     haptic.tick();
     wheel.shuffle();
@@ -977,15 +1046,18 @@ function bind() {
   document.querySelectorAll('[data-price]').forEach((el) => (el.textContent = PRICES[el.dataset.price]));
 }
 
-// No app da Tela de Início do iPhone a altura da janela vem menor que a tela: corrige.
+// No app da Tela de Início do iPhone a janela pode vir mais baixa que a tela.
+// Não mexemos no tamanho do jogo: só medimos a sobra (--gap) para o cenário cobrir
+// essa faixa e o espaçamento de baixo não ficar duplicado.
 function fitStandalone() {
-  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const root = document.documentElement;
-  root.classList.toggle('standalone', standalone);
-  if (!standalone) return;
-  const portrait = innerHeight >= innerWidth;
-  const full = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
-  root.style.setProperty('--app-h', Math.max(innerHeight, full) + 'px');
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  let gap = 0;
+  if (standalone && innerHeight >= innerWidth) {
+    const full = Math.max(screen.height, screen.width);
+    gap = Math.max(0, Math.min(80, full - innerHeight));
+  }
+  root.style.setProperty('--gap', gap + 'px');
 }
 
 async function boot() {
@@ -1002,6 +1074,7 @@ async function boot() {
     return;
   }
   renderHome();
+  ambientLoop();
   $('loading').classList.add('done');
   setTimeout(() => $('loading').remove(), 700);
 
