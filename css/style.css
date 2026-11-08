@@ -14,6 +14,9 @@
   --glass-strong: rgba(255, 255, 255, 0.82);
   --cell-empty: rgba(255, 255, 255, 0.34);
   --cell-full: #fffdf8;
+  --cell-ink: var(--ink);
+  --pop-bg: rgba(255, 255, 255, 0.95);
+  --pop-ink: var(--ink);
   --gold: #f2b84b;
   --gold-deep: #d48f1f;
   --good: #4caf8a;
@@ -30,6 +33,27 @@
   --glass-strong: rgba(30, 30, 60, 0.86);
   --cell-empty: rgba(255, 255, 255, 0.14);
 }
+/* tema preto */
+:root[data-black="1"] {
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-strong: rgba(24, 24, 32, 0.94);
+  --cell-empty: rgba(255, 255, 255, 0.07);
+  --cell-full: #2a2a36;
+  --cell-ink: #f6f4ff;
+  --pop-bg: #23232d;
+  --pop-ink: #f6f4ff;
+  color-scheme: dark;
+}
+:root[data-black="1"] body { background: #0e0e13; }
+:root[data-black="1"] .hill { fill: var(--accent); }
+:root[data-black="1"] .hill-back { opacity: 0.06; }
+:root[data-black="1"] .hill-front { opacity: 0.09; }
+:root[data-black="1"] .orbs i { background: radial-gradient(circle at 40% 40%, color-mix(in srgb, var(--accent) 70%, white), transparent 65%); opacity: 0.22; }
+:root[data-black="1"] .cell.on { box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+:root[data-black="1"] .cell { border-color: rgba(255, 255, 255, 0.08); }
+:root[data-black="1"] .combo { background: rgba(40, 36, 30, 0.9); color: var(--gold); }
+:root[data-black="1"] .reward-row.total { background: rgba(242, 184, 75, 0.18); }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
@@ -245,7 +269,7 @@ svg { display: block; }
   place-items: center;
   font-size: 32px;
   font-weight: 900;
-  color: var(--ink);
+  color: var(--cell-ink);
   background: var(--cell-full);
   box-shadow: 0 8px 18px -8px rgba(20, 30, 60, 0.4), inset 0 -3px 0 rgba(0, 0, 0, 0.06);
   animation: float 4s ease-in-out infinite;
@@ -349,7 +373,7 @@ svg { display: block; }
   display: grid;
   place-items: center;
   font-weight: 900;
-  color: var(--ink);
+  color: var(--cell-ink);
   transition: background 0.3s, transform 0.2s;
 }
 .cell span { opacity: 0; transform: scale(0.3); }
@@ -567,8 +591,8 @@ svg { display: block; }
   font-size: 14px;
   font-weight: 800;
   text-align: center;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.92);
+  color: var(--pop-ink);
+  background: var(--pop-bg);
   box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.35);
   animation: float 3s ease-in-out infinite;
   z-index: 3;
@@ -584,7 +608,7 @@ svg { display: block; }
   place-items: center;
   border-radius: 22%;
   font-weight: 900;
-  color: var(--ink);
+  color: var(--cell-ink);
   background: var(--cell-full);
   box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.35);
   will-change: transform;
@@ -628,8 +652,8 @@ svg { display: block; }
   font-weight: 800;
   font-size: 15px;
   text-align: center;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.95);
+  color: var(--pop-ink);
+  background: var(--pop-bg);
   box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.4);
   transform: translate(-50%, -20px);
   opacity: 0;
@@ -666,6 +690,11 @@ svg { display: block; }
 .modal-card h2 { margin: 4px 0 6px; font-size: 26px; font-weight: 900; }
 .modal-card p { margin: 0 0 14px; color: color-mix(in srgb, currentColor 70%, transparent); font-weight: 700; }
 .modal-card .btn + .btn { margin-top: 8px; }
+.segmented { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(127, 127, 160, 0.16); }
+.segmented button { padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 14px; opacity: 0.75; }
+.segmented button.on { background: var(--accent); color: #fff; opacity: 1; box-shadow: 0 4px 10px -4px var(--accent); }
+.setting-row small { display: block; font-size: 12px; font-weight: 700; opacity: 0.65; }
+.test-tag { font-size: 11px; padding: 2px 7px; border-radius: 99px; background: rgba(242, 184, 75, 0.3); color: var(--gold-deep); margin-left: 6px; vertical-align: 2px; }
 .modal-emoji { font-size: 46px; line-height: 1; margin-top: 4px; }
 .rewards { margin: 8px 0 16px; display: grid; gap: 6px; text-align: left; }
 .reward-row {
@@ -796,3 +825,8 @@ svg { display: block; }
 @media (prefers-reduced-motion: reduce) {
   .orbs i, .logo-mark span, .wheel-tip { animation: none; }
 }
+
+/* ajustes finos do tema preto */
+:root[data-black="1"] .progress { background: rgba(255, 255, 255, 0.1); }
+:root[data-black="1"] .week .dot { background: rgba(255, 255, 255, 0.08); }
+:root[data-black="1"] .streak, :root[data-black="1"] .chapter-num { background: rgba(255, 255, 255, 0.08); }

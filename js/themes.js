@@ -38,24 +38,57 @@ export function chapterOf(level) {
 
 let activeLayer = 'A';
 let currentKey = '';
+let lastTheme = null;
+let mode = 'light'; // 'light' | 'dark' | 'auto'
+const darkQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
+
+function isBlack() {
+  return mode === 'dark' || (mode === 'auto' && !!darkQuery?.matches);
+}
+
+// Mistura uma cor hex com branco (0..1) para o acento brilhar no fundo preto
+function lighten(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v) => Math.round(v + (255 - v) * amt);
+  const r = ch(n >> 16), g = ch((n >> 8) & 255), b = ch(n & 255);
+  return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+}
+
+/** Muda entre tema claro (cores do capítulo), escuro (preto) ou automático (segue o iPhone). */
+export function setThemeMode(m) {
+  mode = m;
+  if (lastTheme) {
+    currentKey = '';
+    applyTheme(lastTheme, true);
+  }
+}
+darkQuery?.addEventListener?.('change', () => mode === 'auto' && setThemeMode('auto'));
 
 export function applyTheme(theme, instant = false) {
-  const key = theme.name;
+  lastTheme = theme;
+  const black = isBlack();
+  const key = theme.name + (black ? ':black' : '');
   if (key === currentKey) return;
   currentKey = key;
   const root = document.documentElement;
+  const accent = black ? lighten(theme.accent, 0.15) : theme.accent;
   root.style.setProperty('--bg1', theme.c[0]);
   root.style.setProperty('--bg2', theme.c[1]);
   root.style.setProperty('--bg3', theme.c[2]);
-  root.style.setProperty('--accent', theme.accent);
+  root.style.setProperty('--accent', accent);
   root.style.setProperty('--ink', theme.ink);
-  root.style.setProperty('--text', theme.dark ? '#f4f1ff' : theme.ink);
-  root.dataset.dark = theme.dark ? '1' : '0';
+  root.style.setProperty('--text', black || theme.dark ? '#f4f1ff' : theme.ink);
+  root.dataset.dark = black || theme.dark ? '1' : '0';
+  root.dataset.black = black ? '1' : '0';
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = theme.c[0];
+  if (meta) meta.content = black ? '#111116' : theme.c[0];
 
-  const grad = `radial-gradient(120% 70% at 80% 0%, rgba(255,255,255,.35), transparent 60%),
-    linear-gradient(180deg, ${theme.c[0]} 0%, ${theme.c[1]} 55%, ${theme.c[2]} 100%)`;
+  const grad = black
+    ? `radial-gradient(110% 55% at 85% -5%, ${accent}38, transparent 60%),
+       radial-gradient(90% 50% at 0% 105%, ${accent}22, transparent 60%),
+       linear-gradient(180deg, #17171e 0%, #0e0e13 55%, #060608 100%)`
+    : `radial-gradient(120% 70% at 80% 0%, rgba(255,255,255,.35), transparent 60%),
+       linear-gradient(180deg, ${theme.c[0]} 0%, ${theme.c[1]} 55%, ${theme.c[2]} 100%)`;
   const a = document.getElementById('bgA');
   const b = document.getElementById('bgB');
   if (instant) {

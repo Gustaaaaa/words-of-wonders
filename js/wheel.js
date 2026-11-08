@@ -50,8 +50,8 @@ export class Wheel {
     const size = this.el.clientWidth;
     if (!size) return;
     const n = this.letters.length;
-    const R = size * (n <= 4 ? 0.3 : n <= 6 ? 0.33 : 0.345);
-    const d = size * (n <= 4 ? 0.25 : n <= 5 ? 0.23 : n <= 6 ? 0.21 : 0.19);
+    const R = size * (n <= 4 ? 0.3 : n <= 6 ? 0.33 : n === 7 ? 0.345 : 0.355);
+    const d = size * (n <= 4 ? 0.25 : n <= 5 ? 0.23 : n <= 6 ? 0.21 : n === 7 ? 0.19 : 0.175);
     this.radius = d / 2;
     this.centers = [];
     this.order.forEach((li, slot) => {

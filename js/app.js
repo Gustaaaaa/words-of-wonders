@@ -1,5 +1,5 @@
 import { load, save, reset, dateKey, addDays, daysBetween } from './storage.js';
-import { CHAPTERS, DAILY_THEME, LEVELS_PER_CHAPTER, chapterOf, applyTheme } from './themes.js';
+import { CHAPTERS, DAILY_THEME, LEVELS_PER_CHAPTER, chapterOf, applyTheme, setThemeMode } from './themes.js';
 import { sfx, unlock, setSfx, setMusic } from './audio.js';
 import { haptic } from './haptics.js';
 import { Wheel } from './wheel.js';
@@ -26,6 +26,7 @@ let DATA = null;
 let game = null;
 let shownCoins = state.coins;
 
+setThemeMode(state.theme || 'light');
 setSfx(state.sound);
 setMusic(state.music);
 haptic.set(state.haptics);
@@ -42,8 +43,10 @@ const wheel = new Wheel($('wheel'), {
 // ---------------------------------------------------------------- moedas
 function renderCoins(value = shownCoins) {
   shownCoins = value;
-  document.querySelectorAll('[data-coins] b').forEach((b) => (b.textContent = value));
+  const label = state.infinite ? '∞' : value;
+  document.querySelectorAll('[data-coins] b').forEach((b) => (b.textContent = label));
 }
+const canAfford = (n) => state.infinite || state.coins >= n;
 function coinPill() {
   return [...document.querySelectorAll('[data-coins]')].find((el) => el.offsetParent !== null);
 }
@@ -67,6 +70,7 @@ function gainCoins(n, fromRect, { flying = Math.min(8, Math.max(1, Math.ceil(n /
   }).then(() => renderCoins(target));
 }
 function spend(n) {
+  if (state.infinite) return true; // modo de teste
   if (state.coins < n) {
     const pill = coinPill();
     pill?.classList.remove('shake');
@@ -598,7 +602,7 @@ function useHint(kind) {
   if (!game || game.done || game.busy) return;
   if (kind === 'target') {
     if (game.targeting) return cancelTargeting();
-    if (state.coins < PRICES.target) return spend(PRICES.target);
+    if (!canAfford(PRICES.target)) return spend(PRICES.target);
     game.targeting = true;
     grid.setTargeting(true);
     $('hintTarget').classList.add('active');
@@ -855,12 +859,18 @@ function chapterSplash(ch) {
 function openSettings() {
   sfx.tap();
   const st = state.stats;
-  const sw = (id, on, label) => `<div class="setting-row"><span>${label}</span><button class="switch ${on ? 'on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${label}"></button></div>`;
+  const sw = (id, on, label) => `<div class="setting-row"><span>${label}</span><button class="switch ${on ? 'on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${label.replace(/<[^>]+>/g, ' ')}"></button></div>`;
   openModal(`
     <h2>Ajustes</h2>
     ${sw('swSound', state.sound, 'Efeitos sonoros')}
     ${sw('swMusic', state.music, 'Música ambiente')}
     ${sw('swHaptics', state.haptics, 'Vibração')}
+    <div class="setting-row"><span>Tema</span>
+      <div class="segmented" id="themeSeg">
+        ${[['light', 'Claro'], ['dark', 'Escuro'], ['auto', 'Auto']].map(([v, l]) => `<button data-v="${v}" class="${(state.theme || 'light') === v ? 'on' : ''}">${l}</button>`).join('')}
+      </div>
+    </div>
+    ${sw('swInfinite', !!state.infinite, 'Moedas infinitas<span class="test-tag">teste</span>')}
     <div class="stats">
       <div class="stat"><b>${st.levels}</b><small>Níveis</small></div>
       <div class="stat"><b>${st.words}</b><small>Palavras</small></div>
@@ -869,6 +879,7 @@ function openSettings() {
       <div class="stat"><b>${state.daily.best}</b><small>Maior sequência</small></div>
       <div class="stat"><b>${st.dailies}</b><small>Desafios</small></div>
     </div>
+    <button class="btn soft" id="testHaptic">Testar vibração</button>
     <button class="btn soft" id="howTo">Como jogar</button>
     <button class="btn ghost" id="resetAll">Recomeçar do zero</button>
     <button class="btn primary" id="closeSettings" style="margin-top:8px">Pronto</button>
@@ -889,6 +900,21 @@ function openSettings() {
       toggle('swSound', 'sound', setSfx);
       toggle('swMusic', 'music', setMusic);
       toggle('swHaptics', 'haptics', (on) => haptic.set(on));
+      toggle('swInfinite', 'infinite', () => renderCoins(state.coins));
+      card.querySelectorAll('#themeSeg button').forEach((b) => {
+        b.onclick = () => {
+          state.theme = b.dataset.v;
+          card.querySelectorAll('#themeSeg button').forEach((x) => x.classList.toggle('on', x === b));
+          setThemeMode(state.theme);
+          save(state);
+          sfx.tap();
+        };
+      });
+      card.querySelector('#testHaptic').onclick = () => {
+        if (!state.haptics) return toast('Ative a vibração primeiro');
+        haptic.now([30, 60, 30]);
+        if (typeof navigator.vibrate !== 'function') toast('No iPhone a vibração precisa do iOS 18 ou mais novo 📳', 3000);
+      };
       card.querySelector('#closeSettings').onclick = closeModal;
       card.querySelector('#howTo').onclick = openHowTo;
       let armed = false;

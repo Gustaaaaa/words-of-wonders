@@ -60,6 +60,7 @@ rambo romeu signe simao sinai tesla trade verne modus drive flash sudao congo pa
 fezes urina utero veado teta tetas mouse chile guine israel macau mali ruanda sofia cesare enrico
 golias iolaus madonna matilda molina monica nestor ramona raquel renato rosita palace single resort slogan viagra
 pascal castro marino peidar mijando obsceno racismo sadico cremado baleada raptada raptou mister demente
+maricas marica marisa bichona sapatao
 `.trim().split(/\s+/));
 
 // ---------------------------------------------------------------- dicionário
@@ -128,7 +129,7 @@ function subKeys(key) {
 
 // ---------------------------------------------------------------- palavras cruzadas
 const MAX_COLS = 11;
-const MAX_ROWS = 10;
+const MAX_ROWS = 11;
 
 function tryLayout(words) {
   const cells = new Map(); // "r,c" -> {ch, h:bool, v:bool}
@@ -229,27 +230,35 @@ function layoutFor(base, candidates, target, minWords) {
 }
 
 // ---------------------------------------------------------------- níveis
-// Curva de dificuldade: [até o nível, letras, mín palavras, alvo, rank máx da base, rank máx das palavras]
+// Curva de dificuldade:
+// [até o nível, mín letras, máx letras, mín palavras, alvo de palavras, rank máx da base, rank máx das palavras]
 const CURVE = [
-  [6, 4, 3, 4, 2500, 6000],
-  [15, 4, 3, 5, 4000, 9000],
-  [35, 5, 4, 5, 5000, 11000],
-  [70, 5, 5, 6, 7000, 14000],
-  [120, 6, 5, 7, 8000, 16000],
-  [200, 6, 6, 8, 11000, 20000],
-  [300, 7, 6, 8, 13000, 22000],
-  [420, 7, 7, 9, 16000, 25000],
-  [600, 7, 7, 10, 20000, 30000],
+  [3, 4, 4, 3, 4, 2500, 6000],
+  [10, 5, 5, 4, 5, 4000, 9000],
+  [25, 5, 6, 4, 6, 6000, 12000],
+  [60, 6, 6, 5, 7, 8000, 15000],
+  [120, 6, 7, 6, 8, 11000, 19000],
+  [220, 7, 7, 6, 9, 14000, 22000],
+  [400, 7, 8, 7, 10, 18000, 26000],
+  [800, 7, 8, 7, 11, 22000, 30000],
 ];
-const TOTAL_LEVELS = 600;
+const TOTAL_LEVELS = 800;
 const DAILY_COUNT = 400;
 
+// Anti-repetição: uma palavra não volta à grade antes de REPEAT_WINDOW níveis
+// e aparece no máximo MAX_USES vezes no jogo todo.
+const REPEAT_WINDOW = 45;
+const MAX_USES = (w) => (w.length <= 3 ? 3 : w.length === 4 ? 3 : 2);
+let lastUsed = new Map();
+let useCount = new Map();
+let seq = 0;
+const fresh = (w) => seq - (lastUsed.get(w) ?? -Infinity) > REPEAT_WINDOW && (useCount.get(w) || 0) < MAX_USES(w);
+
 const usedKeys = new Set();
-const usedBases = new Set();
 
 function makeLevel(nLetters, minWords, target, baseRank, wordRank) {
   const bases = shuffle(
-    [...rank.entries()].filter(([w, r]) => w.length === nLetters && r <= baseRank && !usedKeys.has(keyOf(w)))
+    [...rank.entries()].filter(([w, r]) => w.length === nLetters && r <= baseRank && !usedKeys.has(keyOf(w)) && fresh(w))
   );
   for (const [base] of bases) {
     const key = keyOf(base);
@@ -257,17 +266,23 @@ function makeLevel(nLetters, minWords, target, baseRank, wordRank) {
     const candidates = [];
     const all = new Set();
     for (const s of subs) {
-      for (const w of commonByKey.get(s) || []) if (rank.get(w) <= wordRank) candidates.push(w);
+      for (const w of commonByKey.get(s) || []) if (rank.get(w) <= wordRank && (w === base || fresh(w))) candidates.push(w);
       for (const w of dictByKey.get(s) || []) all.add(w);
     }
     if (candidates.length < minWords) continue;
     // evita grades dominadas por palavras de 3 letras
     const long = candidates.filter((w) => w.length >= 4).length;
-    if (long < Math.ceil(minWords / 2)) continue;
-    const lay = layoutFor(base, candidates, target, minWords);
+    if (long < Math.ceil(minWords * 0.6)) continue;
+    const short = candidates.filter((w) => w.length === 3);
+    const pool = [...candidates.filter((w) => w.length >= 4), ...shuffle(short).slice(0, Math.max(1, Math.floor(target / 3)))];
+    const lay = layoutFor(base, pool, target, minWords);
     if (!lay) continue;
     usedKeys.add(key);
-    usedBases.add(base);
+    seq++;
+    for (const p of lay.words) {
+      lastUsed.set(p.w, seq);
+      useCount.set(p.w, (useCount.get(p.w) || 0) + 1);
+    }
     const gridWords = new Set(lay.words.map((p) => p.w));
     const bonus = [...all].filter((w) => !gridWords.has(w)).sort();
     return {
@@ -278,19 +293,33 @@ function makeLevel(nLetters, minWords, target, baseRank, wordRank) {
       bonus: bonus.join(' ').toUpperCase(),
     };
   }
-  throw new Error(`sem base para ${nLetters} letras`);
+  return null;
+}
+
+// tenta com o tamanho sorteado e, se faltar base, afrouxa os critérios aos poucos
+function makeFlexible(n, min, target, br, wr) {
+  for (let relax = 0; relax < 6; relax++) {
+    const L = makeLevel(n, Math.max(3, min - Math.floor(relax / 2)), target, br * (1 + relax * 0.4), wr * (1 + relax * 0.3));
+    if (L) return L;
+  }
+  throw new Error(`sem base para ${n} letras`);
 }
 
 console.time('níveis');
 const levels = [];
 for (let i = 1; i <= TOTAL_LEVELS; i++) {
-  const [, n, min, target, br, wr] = CURVE.find((c) => i <= c[0]);
-  levels.push(makeLevel(n, min, target, br, wr));
+  const [, lo, hi, min, target, br, wr] = CURVE.find((c) => i <= c[0]);
+  const n = lo + Math.floor(rand() * (hi - lo + 1));
+  levels.push(makeFlexible(n, min, target + (n === 8 ? 1 : 0), br, wr));
   if (i % 100 === 0) console.log('  nível', i);
 }
+// desafios diários têm a própria memória de repetição
+lastUsed = new Map();
+useCount = new Map();
 const daily = [];
 for (let i = 0; i < DAILY_COUNT; i++) {
-  daily.push(makeLevel(6, 6, 8, 16000, 24000));
+  const n = 6 + Math.floor(rand() * 2);
+  daily.push(makeFlexible(n, 6, 8, 18000, 26000));
 }
 console.timeEnd('níveis');
 
