@@ -9,4 +9,7 @@ fi
 if [ ! -f .cache/pt_br_50k.txt ]; then
   curl -sSL -o .cache/pt_br_50k.txt https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/pt_br/pt_br_50k.txt
 fi
-node tools/build-levels.mjs .cache/package .cache/pt_br_50k.txt
+if [ ! -f .cache/en_50k.txt ]; then
+  curl -sSL -o .cache/en_50k.txt https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_50k.txt
+fi
+node tools/build-levels.mjs .cache/package .cache/pt_br_50k.txt .cache/en_50k.txt

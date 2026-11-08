@@ -1,5 +1,5 @@
 // Service worker: guarda o jogo no aparelho para jogar offline.
-const VERSION = 'brisa-v5';
+const VERSION = 'wordbloom-v6';
 const SHELL = [
   './',
   'index.html',
@@ -8,6 +8,7 @@ const SHELL = [
   'js/audio.js',
   'js/grid.js',
   'js/haptics.js',
+  'js/parallax.js',
   'js/storage.js',
   'js/themes.js',
   'js/wheel.js',

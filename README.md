@@ -1,6 +1,6 @@
-# 🍃 Brisa · Palavras
+# 🌸 Word Bloom
 
-Um jogo de palavras cruzadas **zen** para iPhone e celulares, em **português do Brasil**.
+Um jogo de palavras cruzadas relaxante para iPhone e celulares, em **português do Brasil**.
 Deslize o dedo pelas letras da roda, forme palavras e preencha a grade, com sons suaves,
 música ambiente gerada na hora e cenários que mudam a cada capítulo.
 
@@ -21,7 +21,7 @@ Feito como **PWA**: abre no Safari, vira app na tela de início, funciona offlin
 
 1. Abra o link do jogo no **Safari**
 2. Toque em **Compartilhar** → **Adicionar à Tela de Início**
-3. Abra pelo ícone 🍃: tela cheia, sem barra do navegador, e funciona offline
+3. Abra pelo ícone 🌸: tela cheia, sem barra do navegador, e funciona offline
 
 > Dica: os sons respeitam a chave de silencioso do iPhone.
 

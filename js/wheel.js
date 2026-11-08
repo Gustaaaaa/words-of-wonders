@@ -2,7 +2,7 @@
 // Voltar para a letra anterior desfaz a última escolha.
 
 export class Wheel {
-  constructor(el, { onChange, onSubmit, onAdd, onRemove }) {
+  constructor(el, { onChange, onSubmit, onAdd, onRemove, onCenter }) {
     this.el = el;
     this.svg = el.querySelector('.wheel-lines');
     this.line = el.querySelector('polyline');
@@ -10,6 +10,7 @@ export class Wheel {
     this.onSubmit = onSubmit;
     this.onAdd = onAdd;
     this.onRemove = onRemove;
+    this.onCenter = onCenter;
     this.letters = [];
     this.nodes = [];
     this.order = []; // order[slot] = índice da letra naquele lugar
@@ -107,7 +108,13 @@ export class Wheel {
     if (!this.enabled || this.pointerId !== null) return;
     const p = this.local(e);
     const i = this.hit(p, 1.15);
-    if (i < 0) return;
+    if (i < 0) {
+      // toque no meio da roda = embaralhar
+      const size = this.el.clientWidth;
+      if (Math.hypot(p.x - size / 2, p.y - size / 2) < size * 0.14) this.onCenter?.();
+      return;
+    }
+    this.el.classList.add('selecting');
     this.ripple(this.centers[i]);
     this.pointerId = e.pointerId;
     try { this.el.setPointerCapture(e.pointerId); } catch {}
@@ -134,6 +141,7 @@ export class Wheel {
     if (e.pointerId !== this.pointerId) return;
     this.pointerId = null;
     this.pointer = null;
+    this.el.classList.remove('selecting');
     const word = this.word();
     this.sel.forEach((i) => this.nodes[i].classList.remove('sel'));
     this.sel = [];

@@ -4,6 +4,7 @@ import { sfx, unlock, setSfx, setMusic } from './audio.js';
 import { haptic } from './haptics.js';
 import { Wheel } from './wheel.js';
 import { Grid } from './grid.js';
+import { initParallax, requestMotion, setParallax, setParallaxStrength, needsMotionPermission } from './parallax.js';
 
 // ---------------------------------------------------------------- regras
 const COMBO_WINDOW = 7000; // ms para manter o combo vivo
@@ -38,7 +39,18 @@ const wheel = new Wheel($('wheel'), {
   onSubmit: submit,
   onAdd: (i) => { sfx.letter(i); haptic.tick(); },
   onRemove: (i) => sfx.unletter(i),
+  onCenter: () => shuffleLetters(),
 });
+
+function shuffleLetters() {
+  const b = $('btnShuffle');
+  b.classList.remove('spin');
+  void b.offsetWidth;
+  b.classList.add('spin');
+  sfx.shuffle();
+  haptic.tick();
+  wheel.shuffle();
+}
 
 // ---------------------------------------------------------------- moedas
 function renderCoins(value = shownCoins) {
@@ -306,6 +318,7 @@ function closeModal() {
 // ---------------------------------------------------------------- telas
 function show(id) {
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id;
+  setParallaxStrength(id === 'home' ? 1 : 0.35);
 }
 
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -328,11 +341,16 @@ function renderHome() {
   $('homeLevelBadge').textContent = level;
   $('btnPlayLevel').textContent = `Nível ${level}`;
   const inChapter = (level - 1) % LEVELS_PER_CHAPTER;
-  requestAnimationFrame(() => ($('homeChapterProgress').style.width = (inChapter / LEVELS_PER_CHAPTER) * 100 + '%'));
+  requestAnimationFrame(() => {
+    $('homeChapterProgress').style.width = (inChapter / LEVELS_PER_CHAPTER) * 100 + '%';
+    $('homeRing').style.strokeDashoffset = 125.7 * (1 - inChapter / LEVELS_PER_CHAPTER);
+  });
 
   const today = dateKey();
   const now = new Date();
   $('dailyDate').textContent = `${now.getDate()} de ${MONTHS[now.getMonth()]}`;
+  $('calMonth').textContent = MONTHS[now.getMonth()].slice(0, 3).toUpperCase();
+  $('calDay').textContent = now.getDate();
   const streak = currentStreak();
   $('streakCount').textContent = streak;
   $('streakBadge').classList.toggle('off', streak === 0);
@@ -934,6 +952,7 @@ function openSettings() {
         ${[['light', 'Claro'], ['dark', 'Escuro'], ['auto', 'Auto']].map(([v, l]) => `<button data-v="${v}" class="${(state.theme || 'light') === v ? 'on' : ''}">${l}</button>`).join('')}
       </div>
     </div>
+    ${sw('swParallax', state.parallax !== false, 'Fundo em movimento')}
     ${sw('swInfinite', !!state.infinite, 'Moedas infinitas<span class="test-tag">teste</span>')}
     <div class="stats">
       <div class="stat"><b>${st.levels}</b><small>Níveis</small></div>
@@ -965,6 +984,15 @@ function openSettings() {
       toggle('swMusic', 'music', setMusic);
       toggle('swHaptics', 'haptics', (on) => haptic.set(on));
       toggle('swInfinite', 'infinite', () => renderCoins(state.coins));
+      const pb = card.querySelector('#swParallax');
+      pb.onclick = () => {
+        state.parallax = state.parallax === false;
+        pb.classList.toggle('on', state.parallax);
+        setParallax(state.parallax);
+        if (state.parallax) requestMotion();
+        save(state);
+        sfx.tap();
+      };
       card.querySelectorAll('#themeSeg button').forEach((b) => {
         b.onclick = () => {
           state.theme = b.dataset.v;
@@ -1034,15 +1062,7 @@ function bind() {
     resetIdle();
     renderHome();
   };
-  $('btnShuffle').onclick = () => {
-    const b = $('btnShuffle');
-    b.classList.remove('spin');
-    void b.offsetWidth;
-    b.classList.add('spin');
-    sfx.shuffle();
-    haptic.tick();
-    wheel.shuffle();
-  };
+
   $('btnJar').onclick = openJar;
   $('hintLight').onclick = () => useHint('light');
   $('hintTarget').onclick = () => useHint('target');
@@ -1067,15 +1087,75 @@ function fitStandalone() {
   if (scrollY) scrollTo(0, 0);
 }
 
+function makeStars() {
+  const box = $('stars');
+  for (let i = 0; i < 46; i++) {
+    const st = document.createElement('i');
+    st.style.left = Math.random() * 100 + '%';
+    st.style.top = Math.random() * 100 + '%';
+    st.style.animationDuration = 2 + Math.random() * 4 + 's';
+    st.style.animationDelay = -Math.random() * 4 + 's';
+    const sz = Math.random() < 0.15 ? 3 : Math.random() < 0.5 ? 2 : 1.5;
+    st.style.width = st.style.height = sz + 'px';
+    box.appendChild(st);
+  }
+}
+
+// Carrega os níveis mostrando o progresso de verdade (quando o servidor informa o tamanho)
+async function loadLevels() {
+  const bar = $('loadingBar');
+  let fake = 0;
+  const tick = setInterval(() => {
+    fake = Math.min(88, fake + (90 - fake) * 0.08);
+    bar.style.width = fake + '%';
+  }, 120);
+  try {
+    const res = await fetch('data/levels.json');
+    const total = Number(res.headers.get('content-length')) || 0;
+    const encoded = res.headers.get('content-encoding');
+    if (res.body && total && !encoded) {
+      clearInterval(tick);
+      const reader = res.body.getReader();
+      const chunks = [];
+      let got = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        got += value.length;
+        bar.style.width = Math.min(100, (got / total) * 100) + '%';
+      }
+      const all = new Uint8Array(got);
+      let o = 0;
+      for (const c of chunks) { all.set(c, o); o += c.length; }
+      return JSON.parse(new TextDecoder().decode(all));
+    }
+    return await res.json();
+  } finally {
+    clearInterval(tick);
+    bar.style.width = '100%';
+  }
+}
+
 async function boot() {
   fitStandalone();
+  makeStars();
+  initParallax($('bg'));
+  setParallax(state.parallax !== false);
+  // iPhone: o giroscópio só libera com permissão pedida dentro de um toque
+  if (needsMotionPermission() && state.parallax !== false) {
+    document.addEventListener('click', () => requestMotion(), { once: true, capture: true });
+  }
   addEventListener('resize', fitStandalone);
   addEventListener('orientationchange', () => setTimeout(fitStandalone, 300));
   bind();
   applyTheme(chapterOf(state.level).theme, true);
+  const started = performance.now();
   try {
-    const res = await fetch('data/levels.json');
-    DATA = await res.json();
+    DATA = await loadLevels();
+    // deixa a animação de entrada aparecer um pouquinho
+    const wait = 900 - (performance.now() - started);
+    if (wait > 0) await sleep(wait);
   } catch (e) {
     $('loading').innerHTML = '<p style="font-weight:800;color:#fff;text-align:center;padding:24px">Não foi possível carregar os níveis.<br>Verifique sua conexão e abra de novo.</p>';
     return;

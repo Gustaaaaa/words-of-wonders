@@ -1,8 +1,8 @@
 {
-  "name": "brisa-palavras",
+  "name": "word-bloom",
   "version": "1.0.0",
   "private": true,
-  "description": "Brisa · Palavras — jogo de palavras cruzadas zen para celular (PWA)",
+  "description": "Word Bloom — jogo de palavras cruzadas relaxante para celular (PWA)",
   "type": "module",
   "scripts": {
     "start": "python3 -m http.server 8080",

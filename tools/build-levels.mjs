@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { expandHunspell } from './hunspell-expand.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const [dictDir, freqPath] = process.argv.slice(2);
+const [dictDir, freqPath, enFreqPath] = process.argv.slice(2);
 if (!dictDir || !freqPath) {
   console.error('uso: node tools/build-levels.mjs <dictionary-pt dir> <pt_br_50k.txt>');
   process.exit(1);
@@ -60,7 +60,7 @@ rambo romeu signe simao sinai tesla trade verne modus drive flash sudao congo pa
 fezes urina utero veado teta tetas mouse chile guine israel macau mali ruanda sofia cesare enrico
 golias iolaus madonna matilda molina monica nestor ramona raquel renato rosita palace single resort slogan viagra
 pascal castro marino peidar mijando obsceno racismo sadico cremado baleada raptada raptou mister demente
-maricas marica marisa bichona sapatao
+maricas marica marisa bichona sapatao site sites paulo paula care cares fan fans
 `.trim().split(/\s+/));
 
 // ---------------------------------------------------------------- dicionário
@@ -91,6 +91,28 @@ for (const w of dict) {
 }
 
 // ---------------------------------------------------------------- frequência
+// Ranking em português de qualquer forma (mesmo fora do dicionário) e ranking em inglês,
+// para descartar palavras inglesas: comuns em inglês e ausentes/raras no português.
+const ptAny = new Map();
+readFileSync(freqPath, 'utf8').split(/\r?\n/).forEach((line, i) => {
+  const w = norm(line.split(' ')[0] || '');
+  if (w && !ptAny.has(w)) ptAny.set(w, i + 1);
+});
+const enRank = new Map();
+if (enFreqPath) {
+  readFileSync(enFreqPath, 'utf8').split(/\r?\n/).forEach((line, i) => {
+    const w = (line.split(' ')[0] || '').toLowerCase();
+    if (/^[a-z]+$/.test(w) && !enRank.has(w)) enRank.set(w, i + 1);
+  });
+}
+// para a grade: rígido; para o bônus: só cai se nunca aparece em português
+const englishForGrid = (w) => enRank.has(w) && enRank.get(w) < 12000 && (!ptAny.has(w) || ptAny.get(w) > 2 * enRank.get(w));
+const englishForBonus = (w) =>
+  enRank.has(w) && ((enRank.get(w) < 25000 && !ptAny.has(w)) || (enRank.get(w) < 5000 && ptAny.get(w) > 3 * enRank.get(w)));
+const isName = (w) => proper.has(w) && !lowerStems.has(w);
+const foreignLetters = (w) => /[kwy]/.test(w);
+console.log('nomes próprios no dicionário:', proper.size, '| inglês carregado:', enRank.size);
+
 const rank = new Map();
 {
   let r = 0;
@@ -102,7 +124,7 @@ const rank = new Map();
     if (!/^[a-z]+$/.test(w) || w.length < 3 || w.length > 8) continue;
     if (!dict.has(w) || blocked(w) || AVOID_GRID.has(w) || NOT_GRID.has(w)) continue;
     if (!exactGood.has(raw.toLowerCase())) continue; // grafia exata precisa existir no dicionário
-    if (proper.has(w) && !lowerStems.has(w)) continue; // "ana", "paulo"...
+    if (isName(w) || englishForGrid(w) || foreignLetters(w)) continue; // "ana", "show"...
     if (!rank.has(w)) rank.set(w, r);
   }
 }
@@ -129,7 +151,7 @@ function subKeys(key) {
 
 // ---------------------------------------------------------------- palavras cruzadas
 const MAX_COLS = 11;
-const MAX_ROWS = 11;
+const MAX_ROWS = 12;
 
 function tryLayout(words) {
   const cells = new Map(); // "r,c" -> {ch, h:bool, v:bool}
@@ -233,14 +255,14 @@ function layoutFor(base, candidates, target, minWords) {
 // Curva de dificuldade:
 // [até o nível, mín letras, máx letras, mín palavras, alvo de palavras, rank máx da base, rank máx das palavras]
 const CURVE = [
-  [3, 4, 4, 3, 4, 2500, 6000],
-  [10, 5, 5, 4, 5, 4000, 9000],
-  [25, 5, 6, 4, 6, 6000, 12000],
-  [60, 6, 6, 5, 7, 8000, 15000],
-  [120, 6, 7, 6, 8, 11000, 19000],
-  [220, 7, 7, 6, 9, 14000, 22000],
-  [400, 7, 8, 7, 10, 18000, 26000],
-  [800, 7, 8, 7, 11, 22000, 30000],
+  [3, 4, 4, 3, 5, 2500, 8000],
+  [10, 5, 5, 4, 6, 4000, 11000],
+  [25, 5, 6, 5, 7, 6000, 14000],
+  [60, 6, 6, 6, 8, 8000, 17000],
+  [120, 6, 7, 6, 9, 11000, 21000],
+  [220, 7, 7, 7, 10, 14000, 24000],
+  [400, 7, 8, 8, 11, 18000, 28000],
+  [800, 7, 8, 8, 12, 22000, 32000],
 ];
 const TOTAL_LEVELS = 800;
 const DAILY_COUNT = 400;
@@ -284,7 +306,9 @@ function makeLevel(nLetters, minWords, target, baseRank, wordRank) {
       useCount.set(p.w, (useCount.get(p.w) || 0) + 1);
     }
     const gridWords = new Set(lay.words.map((p) => p.w));
-    const bonus = [...all].filter((w) => !gridWords.has(w)).sort();
+    const bonus = [...all]
+      .filter((w) => !gridWords.has(w) && !isName(w) && !englishForBonus(w) && !foreignLetters(w) && !NOT_GRID.has(w))
+      .sort();
     return {
       letters: base.toUpperCase(),
       rows: lay.rows,
@@ -319,7 +343,7 @@ useCount = new Map();
 const daily = [];
 for (let i = 0; i < DAILY_COUNT; i++) {
   const n = 6 + Math.floor(rand() * 2);
-  daily.push(makeFlexible(n, 6, 8, 18000, 26000));
+  daily.push(makeFlexible(n, 7, 10, 18000, 28000));
 }
 console.timeEnd('níveis');
 
